@@ -1,0 +1,1 @@
+# wordle-tournaments-client
