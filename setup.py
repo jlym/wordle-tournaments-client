@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='wordle-tournaments-client',
+    name='wordle_tournaments_client',
     version='0.0.1',
     author='',
     author_email='',
@@ -16,6 +16,6 @@ setuptools.setup(
         "Bug Tracker": "https://github.com/jlym/wordle-tournaments-client/issues"
     },
     license='MIT',
-    packages=['toolbox'],
+    packages=['wordle_tournaments_client'],
     install_requires=['requests'],
 )
