@@ -1,11 +1,13 @@
-__version__ = "0.0.1"
+__version__ = "0.0.3"
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional, DefaultDict, Tuple
 from collections import defaultdict, Counter
 from dataclasses import dataclass
-import requests
 from abc import ABC, abstractmethod
+import requests
+from .dict_words import words
+from .wordle_words import wordle_words
 
 @dataclass(frozen=True)
 class User:

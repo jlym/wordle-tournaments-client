@@ -1,5 +1,5 @@
 from cProfile import run
-from wordle_tournaments_client import Client, Solver, TournamentRunner, MemoryGameRunner
+from wordle_tournaments_client import Client, Solver, TournamentRunner, MemoryGameRunner, wordle_words, words
 from typing import Dict, List, Optional
 
 def test_api():
@@ -87,3 +87,8 @@ def test_memory_game_runner_fail():
     
     assert not result.won
     assert result.num_guesses == 2
+
+def test_all_wordle_words_in_all_words():
+    all_words_set = set(words)
+    for wordle_word in wordle_words:
+        assert wordle_word in all_words_set
