@@ -1,6 +1,8 @@
 __version__ = "0.0.1"
 
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional, DefaultDict, Tuple
+from collections import defaultdict, Counter
 from dataclasses import dataclass
 import requests
 from abc import ABC, abstractmethod
@@ -175,5 +177,79 @@ class TournamentRunner:
             letter_info = guess_result.letter_info
 
 
+@dataclass(frozen=True)
+class GameResult:
+    won: bool
+    num_guesses: int
+    guesses: List[Tuple[str, str]]
 
+
+class MemoryGameRunner:
+    solution: str
+    solver: Solver
+    max_num_guesses: int
+    letter_info: DefaultDict[str, List[int]]
+    guesses: List[Tuple[str, str]]
+
+    def __init__(self, solution: str, solver: Solver, max_num_guesses: int = 100):
+        self.solution = solution
+        self.solver = solver
+        self.max_num_guesses = max_num_guesses
+        self.letter_info = defaultdict(list)
+        self.guesses = []
+    
+    def play_game(self) -> GameResult:
+        num_guesses = 0
+        won = False
+
+        last_word_valid = True
+        last_word_score = ""
+
+        while not won and num_guesses < self.max_num_guesses:
+            num_guesses += 1
+
+            guess = self.solver.get_guess(last_word_valid, last_word_score, self.letter_info)
+            last_word_score = self._score_guess(guess)
+            self._update_letter_info(guess, last_word_score)
+            self.guesses.append((guess, last_word_score))
+            won = last_word_score == "ggggg"
+
+        return GameResult(won, num_guesses, self.guesses)
+
+
+    def _score_guess(self, guess: str) -> str:
+        sol_char_counts = Counter(self.solution)
+        score = ["w"] * 5
+
+        for i, guess_c in enumerate(guess):
+            sol_c = self.solution[i]
+
+            if sol_c == guess_c:
+                sol_char_counts.subtract(guess_c)
+                score[i] = "g"
+
+        for i, guess_c in enumerate(guess):
+            sol_c = self.solution[i]
+
+            if sol_c == guess_c:
+                continue
+
+            if sol_char_counts[guess_c] > 0:
+                score[i] = "y"
+                sol_char_counts.subtract(guess_c)
             
+        return "".join(score)
+
+    def _update_letter_info(self, guess: str, score: str) -> None:
+        for i, guess_c in enumerate(guess):
+            score_c = score[i]
+
+            num = 0
+            if score_c == "w":
+                num = -1 * (i + 1)
+            elif score_c == "y":
+                num = i + 1
+
+            if num not in self.letter_info[guess_c]:
+                self.letter_info[guess_c].append(num)
+

@@ -1,5 +1,5 @@
 from cProfile import run
-from wordle_tournaments_client import Client, Solver, TournamentRunner
+from wordle_tournaments_client import Client, Solver, TournamentRunner, MemoryGameRunner
 from typing import Dict, List, Optional
 
 def test_api():
@@ -53,7 +53,8 @@ class FixedGuessSolver(Solver):
         letter_info: Dict[str, List[int]]) -> str:
         
         word = self.guesses[self.next_guess_index]
-        self.next_guess_index += 1
+        self.next_guess_index = (self.next_guess_index + 1) % len(self.guesses)
+            
         return word
 
 
@@ -69,3 +70,20 @@ def test_tournament_solver():
     solver = FixedGuessSolver(["bread", "cigar"])
     runner = TournamentRunner(solver, auth_code, user.user_id, server_url, 0, 0)
     runner.play_tournament()
+
+def test_memory_game_runner():
+    solver = FixedGuessSolver(["bread", "cigar"])
+    runner = MemoryGameRunner("cigar", solver, 5)
+    result = runner.play_game()
+    
+    assert result.won
+    assert result.num_guesses == 2
+    assert result.guesses == [("bread", "wywgw"), ("cigar", "ggggg")] 
+
+def test_memory_game_runner_fail():
+    solver = FixedGuessSolver(["bread", "cigar"])
+    runner = MemoryGameRunner("joule", solver, 2)
+    result = runner.play_game()
+    
+    assert not result.won
+    assert result.num_guesses == 2
