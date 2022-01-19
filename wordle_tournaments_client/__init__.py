@@ -122,13 +122,17 @@ class TournamentRunner:
     solver: Solver
     client: Client
     user_id: int
+    seed_start: int
+    seed_end: int
 
     def __init__(
         self,
         solver: Solver,
         auth_code: str,
         user_id: int,
-        server_url: Optional[str] = None ) -> None:
+        server_url: Optional[str] = None,
+        seed_start: int = 0,
+        seed_end: int = 2000) -> None:
 
         self.solver = solver
         self.user_id = user_id
@@ -136,9 +140,11 @@ class TournamentRunner:
             Client(auth_code, server_url) \
             if server_url \
             else Client(auth_code) 
+        self.seed_start = seed_start
+        self.seed_end = seed_end
 
     def play_tournament(self) -> None:
-        for seed in (range(2000)):
+        for seed in range(self.seed_start, self.seed_end + 1):
             game = self.client.create_game(self.user_id, seed)
             self._play_game(game.game_id)
 

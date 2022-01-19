@@ -1,4 +1,6 @@
-from wordle_tournaments_client import Client
+from cProfile import run
+from wordle_tournaments_client import Client, Solver, TournamentRunner
+from typing import Dict, List, Optional
 
 def test_api():
     client = Client("token", "http://localhost:3000/api")
@@ -35,3 +37,35 @@ def test_api():
         "a": [4],
         "d": [5]
     }
+
+class FixedGuessSolver(Solver):
+    guesses: List[str]
+    next_guess_index: int
+
+    def __init__(self, guesses: List[str]):
+        self.guesses = guesses
+        self.next_guess_index = 0
+
+    def get_guess(
+        self,
+        last_word_valid: bool,
+        last_word_score: str,
+        letter_info: Dict[str, List[int]]) -> str:
+        
+        word = self.guesses[self.next_guess_index]
+        self.next_guess_index += 1
+        return word
+
+
+def test_tournament_solver():
+    auth_code = "token"
+    server_url = "http://localhost:3000/api"
+    client = Client(auth_code, server_url)
+
+    # Create a user
+    description = "python client tournament test user"
+    user = client.create_user(description)
+
+    solver = FixedGuessSolver(["bread", "cigar"])
+    runner = TournamentRunner(solver, auth_code, user.user_id, server_url, 0, 0)
+    runner.play_tournament()
