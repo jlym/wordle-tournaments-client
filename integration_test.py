@@ -11,7 +11,7 @@ def test_api():
     assert user.description == description
 
     # Create a game.
-    game = client.create_game(user.user_id)
+    game = client.create_game(user.user_id, solution="bread")
     assert game
     assert game.user_id == user.user_id
     assert game.game_id
@@ -26,4 +26,12 @@ def test_api():
     assert guess
     assert guess.game_id == game.game_id
     assert guess.word == "bread"
-    assert guess.score
+    assert guess.score == "ggggg"
+    assert guess.done
+    assert guess.letter_info == {
+        "b": [1],
+        "r": [2],
+        "e": [3],
+        "a": [4],
+        "d": [5]
+    }
