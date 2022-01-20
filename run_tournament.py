@@ -1,4 +1,4 @@
-from solvers import CharFreqSolver
+from solvers import CharFreqSolver, FixedStartingWordThenArbirarySolver
 from wordle_tournaments_client import TournamentRunner
 import os
 import sys
@@ -10,6 +10,6 @@ if not auth_code:
 
 #auth_code="token"
 
-solver = CharFreqSolver()
-runner = TournamentRunner(solver, auth_code, "jeffrey_freq_solver_scrabble", "Jeffrey: frequency solver using scrabble list")
+solver = FixedStartingWordThenArbirarySolver("solar")
+runner = TournamentRunner(solver, auth_code, "jeffrey_fixed_starting_wordle_solns", "Starting word: solar, Dictionary: Wordle solutions")
 runner.play_tournament()

@@ -1,4 +1,4 @@
-from solvers import CharFreqSolver, is_eligible
+from solvers import CharFreqSolver, is_eligible, FixedStartingWordThenArbirarySolver
 from wordle_tournaments_client import MemoryGameRunner
 
 def test_is_eligible():
@@ -21,6 +21,13 @@ def test_char_freq_solver():
 
 def test_char_freq_solver_2():
     solver = CharFreqSolver()
+    runner = MemoryGameRunner("proxy", solver, 10)
+    result = runner.play_game()
+    print(result)
+    assert result.won
+
+def test_char_freq_solver_3():
+    solver = FixedStartingWordThenArbirarySolver("bread")
     runner = MemoryGameRunner("proxy", solver, 10)
     result = runner.play_game()
     print(result)

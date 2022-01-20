@@ -1,7 +1,7 @@
 
 from collections import Counter
 from typing import List, Dict
-from wordle_tournaments_client import Solver, get_valid_scrabble_words
+from wordle_tournaments_client import Solver, get_valid_scrabble_words, wordle_solution_words
 
 def is_eligible(word: str, guess: str, score: str) -> bool:
     word_char_freq = Counter(word)
@@ -96,4 +96,47 @@ class CharFreqSolver(Solver):
             self.filter_eligible_words(last_word, last_word_score)
 
         return self.pick_word()
+
+class FixedStartingWordThenArbirarySolver(Solver):
+    eligible_words: List[str]
+    starter_word: str
+    
+    def __init__(self, starter_word: str) -> None:
+        self.eligible_words = wordle_solution_words
+        self.starter_word = starter_word
+
+    def reset(self) -> None:
+        self.eligible_words = wordle_solution_words
+
+    def filter_eligible_words(self, guess: str, score: str):
+        new_eligible_words: List[str] = []
+
+        for eligible_word in self.eligible_words:
+            if is_eligible(eligible_word, guess, score):
+                new_eligible_words.append(eligible_word)
+
+        self.eligible_words = new_eligible_words
+
+
+    def get_guess(
+        self,
+        last_word: str,
+        last_word_valid: bool,
+        last_word_score: str) -> str:
+
+        if not last_word_valid:
+            self.eligible_words.remove(last_word)
+
+        if last_word:
+            self.filter_eligible_words(last_word, last_word_score)
+
+        if len(self.eligible_words) == 0:
+            raise ValueError("no eligible words left")
+
+        # If first word
+        if not last_word:
+            return self.starter_word
+
+        return self.eligible_words[0]
+
 
