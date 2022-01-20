@@ -1,6 +1,6 @@
 __version__ = "0.0.3"
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, DefaultDict, Tuple, Set
 from collections import defaultdict, Counter
 from dataclasses import dataclass
@@ -27,6 +27,19 @@ class Game:
     num_guesses: int
     done: bool
 
+@dataclass(frozen=True)
+class CompleteGamesGuess:
+    word: str
+    score: str
+
+@dataclass(frozen=True)
+class CreateCompleteGameArgs:
+    auth_code: str
+    user_id: int
+    seed: int
+    solution: str
+    done: bool
+    guesses: List[CompleteGamesGuess]
 
 @dataclass(frozen=True)
 class Guess:
@@ -116,6 +129,22 @@ class Client:
             letter_info=json["letter_info"],
             done=json["done"]
         )
+
+    def create_complete_game(self, args: CreateCompleteGameArgs) -> Game:
+        url = f"{self.base_url}/completegame"
+        args_dict = asdict(args)
+        resp = requests.post(url, json=args_dict)
+        resp.raise_for_status()
+
+        json = resp.json()
+        return Game(
+            game_id=json["game_id"], 
+            user_id=json["user_id"],
+            seed=json["seed"],
+            solution=json["solution"],
+            letter_info={},
+            num_guesses=json["num_guesses"],
+            done=json["done"])
 
 
 def get_valid_wordle_words() -> Set[str]:
