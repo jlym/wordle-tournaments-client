@@ -48,8 +48,9 @@ class FixedGuessSolver(Solver):
 
     def get_guess(
         self,
-        last_word_valid: bool,
-        last_word_score: str,
+        last_guess: str,
+        last_guess_valid: bool,
+        last_guess_score: str,
         letter_info: Dict[str, List[int]]) -> str:
         
         word = self.guesses[self.next_guess_index]

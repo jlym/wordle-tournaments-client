@@ -115,9 +115,10 @@ class Client:
 class Solver(ABC):
     @abstractmethod
     def get_guess(
-        self, 
-        last_word_valid: bool,
-        last_word_score: str,
+        self,
+        last_guess: str,
+        last_guess_valid: bool,
+        last_guess_score: str,
         letter_info: Dict[str, List[int]]) -> str:
         pass 
 
@@ -156,13 +157,14 @@ class TournamentRunner:
         num_turns = 0
         done = False
 
+        last_guess = ""
         last_word_valid = True
         last_word_score = ""
         letter_info: Dict[str, List[int]] = {}
 
         while not done and num_turns < 100:
             num_turns += 1
-            word = self.solver.get_guess(last_word_valid, last_word_score, letter_info)
+            word = self.solver.get_guess(last_guess, last_word_valid, last_word_score, letter_info)
 
             try:
                 guess_result = self.client.create_guess(game_id, word)
@@ -173,6 +175,7 @@ class TournamentRunner:
                     continue
                 raise
 
+            last_guess = guess_result.word
             done = guess_result.done
             last_word_score = guess_result.score
             last_word_valid = True
@@ -206,11 +209,13 @@ class MemoryGameRunner:
 
         last_word_valid = True
         last_word_score = ""
+        last_guess = ""
 
         while not won and num_guesses < self.max_num_guesses:
             num_guesses += 1
 
-            guess = self.solver.get_guess(last_word_valid, last_word_score, self.letter_info)
+            guess = self.solver.get_guess(last_guess, last_word_valid, last_word_score, self.letter_info)
+            last_guess = guess
             last_word_score = self._score_guess(guess)
             self._update_letter_info(guess, last_word_score)
             self.guesses.append((guess, last_word_score))
