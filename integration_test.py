@@ -1,5 +1,5 @@
 from wordle_tournaments_client import Client, Solver, TournamentRunner, MemoryGameRunner
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 def test_api():
     client = Client("token", "http://localhost:3000/api")
@@ -24,12 +24,12 @@ class FixedGuessSolver(Solver):
         self,
         last_guess: str,
         last_guess_valid: bool,
-        last_guess_score: str) -> str:
+        last_guess_score: str) -> Tuple[str, int]:
         
         word = self.guesses[self.next_guess_index]
         self.next_guess_index = (self.next_guess_index + 1) % len(self.guesses)
             
-        return word
+        return word, 5
 
 
 def test_tournament_solver():

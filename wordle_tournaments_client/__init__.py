@@ -11,6 +11,8 @@ from .wordle_valid_words import wordle_valid_words
 from .scrabble_words import scrabble_words
 from datetime import datetime
 
+default_server_url = "https://wordle-tournaments.vercel.app/api"
+
 
 @dataclass(frozen=True)
 class User:
@@ -18,10 +20,11 @@ class User:
     description: str
 
 
-@dataclass(frozen=True)
+@dataclass()
 class CompleteGamesGuess:
     word: str
     score: str
+    num_words_remaining: int
 
 
 @dataclass(frozen=True)
@@ -33,7 +36,6 @@ class Game:
     guesses: List[CompleteGamesGuess]
     status: int
     num_guesses: int
-
 
 
 @dataclass(frozen=True)
@@ -53,9 +55,6 @@ class Guess:
     score: str
     guesses: List[CompleteGamesGuess]
     status: int
-
-
-default_server_url = "https://wordle-tournaments.vercel.app/api"
 
 
 class Client:
@@ -116,7 +115,7 @@ class Solver(ABC):
         self,
         last_guess: str,
         last_guess_valid: bool,
-        last_guess_score: str) -> str:
+        last_guess_score: str) -> Tuple[str, int]:
         pass 
 
     abstractmethod
@@ -211,10 +210,12 @@ class TournamentRunner:
         while not won and num_guesses < self.max_num_turns:
             num_guesses += 1
 
-            guess = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
+            guess, num_words_remaining = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
             last_guess = guess
             last_word_score = _score_guess(guess, solution)
-            guesses.append(CompleteGamesGuess(guess, last_word_score))
+            if len(guesses) > 0:
+                guesses[-1].num_words_remaining = num_words_remaining
+            guesses.append(CompleteGamesGuess(guess, last_word_score, 0))
             won = last_word_score == "ggggg"
 
         status = 1 if won else 2
@@ -254,7 +255,7 @@ class MemoryGameRunner:
         while not won and num_guesses < self.max_num_guesses:
             num_guesses += 1
 
-            guess = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
+            guess, _ = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
             last_guess = guess
             last_word_score = self._score_guess(guess)
             self.guesses.append((guess, last_word_score))

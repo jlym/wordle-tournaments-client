@@ -1,6 +1,6 @@
 
 from collections import Counter
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from wordle_tournaments_client import Solver, get_valid_scrabble_words, wordle_solution_words
 
 def is_eligible(word: str, guess: str, score: str) -> bool:
@@ -87,7 +87,7 @@ class CharFreqSolver(Solver):
         self,
         last_word: str,
         last_word_valid: bool,
-        last_word_score: str) -> str:
+        last_word_score: str) -> Tuple[str, int]:
 
         if not last_word_valid:
             raise ValueError("last word was not valid")
@@ -95,7 +95,7 @@ class CharFreqSolver(Solver):
         if last_word:
             self.filter_eligible_words(last_word, last_word_score)
 
-        return self.pick_word()
+        return self.pick_word(), len(self.eligible_words)
 
 class FixedStartingWordThenArbirarySolver(Solver):
     eligible_words: List[str]
@@ -122,7 +122,7 @@ class FixedStartingWordThenArbirarySolver(Solver):
         self,
         last_word: str,
         last_word_valid: bool,
-        last_word_score: str) -> str:
+        last_word_score: str) -> Tuple[str, int]:
 
         if not last_word_valid:
             self.eligible_words.remove(last_word)
@@ -135,8 +135,8 @@ class FixedStartingWordThenArbirarySolver(Solver):
 
         # If first word
         if not last_word:
-            return self.starter_word
+            return self.starter_word, len(self.eligible_words)
 
-        return self.eligible_words[0]
+        return self.eligible_words[0], len(self.eligible_words)
 
 

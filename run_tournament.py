@@ -8,7 +8,6 @@ if not auth_code:
     print("Expected AUTH_CODE environment variable to be set")
     sys.exit(1)
 
-#auth_code="token"
 
 solver = FixedStartingWordThenArbirarySolver("solar")
 runner = TournamentRunner(solver, auth_code, "jeffrey_fixed_starting_wordle_solns", "Starting word: solar, Dictionary: Wordle solutions")
