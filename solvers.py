@@ -1,8 +1,7 @@
 
 from collections import Counter
 from typing import List, Dict
-from wordle_tournaments_client import Solver, words
-
+from wordle_tournaments_client import Solver, get_valid_scrabble_words
 
 def is_eligible(word: str, guess: str, score: str) -> bool:
     word_char_freq = Counter(word)
@@ -48,11 +47,12 @@ def is_eligible(word: str, guess: str, score: str) -> bool:
 
 class CharFreqSolver(Solver):
     eligible_words: List[str]
-    word_to_score: Dict[str, int]
     
     def __init__(self) -> None:
-        self.eligible_words = words.copy()
+        self.eligible_words = get_valid_scrabble_words()
 
+    def reset(self) -> None:
+        self.eligible_words = get_valid_scrabble_words()
 
     def pick_word(self) -> str:
         char_counter: Counter[str] = Counter()
@@ -87,8 +87,7 @@ class CharFreqSolver(Solver):
         self,
         last_word: str,
         last_word_valid: bool,
-        last_word_score: str,
-        _: Dict[str, List[int]]) -> str:
+        last_word_score: str) -> str:
 
         if not last_word_valid:
             raise ValueError("last word was not valid")
@@ -97,3 +96,4 @@ class CharFreqSolver(Solver):
             self.filter_eligible_words(last_word, last_word_score)
 
         return self.pick_word()
+

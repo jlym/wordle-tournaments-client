@@ -1,13 +1,15 @@
 __version__ = "0.0.3"
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, DefaultDict, Tuple
+from typing import Dict, List, Optional, DefaultDict, Tuple, Set
 from collections import defaultdict, Counter
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import requests
-from .dict_words import words
-from .wordle_words import wordle_words
+from .wordle_solution_words import wordle_solution_words
+from .wordle_valid_words import wordle_valid_words
+from .scrabble_words import scrabble_words
+
 
 @dataclass(frozen=True)
 class User:
@@ -36,11 +38,14 @@ class Guess:
     done: bool
 
 
+default_server_url = "https://wordle-tournaments.vercel.app/api"
+
+
 class Client:
     base_url: str
     auth_code: str
 
-    def __init__(self, auth_code: str, url: str = "https://wordle-tournaments.vercel.app/api") -> None:
+    def __init__(self, auth_code: str, url: str = default_server_url) -> None:
         self.base_url = url
         self.auth_code = auth_code
 
@@ -112,32 +117,53 @@ class Client:
             done=json["done"]
         )
 
+
+def get_valid_wordle_words() -> Set[str]:
+    words = set()
+    for word in wordle_solution_words:
+        words.add(word)
+    for word in wordle_valid_words:
+        words.add(word)
+    return words
+
+
+def get_valid_scrabble_words() -> List[str]:
+    valid_words_set = get_valid_wordle_words()
+    return [w for w in scrabble_words if w in valid_words_set]
+
+
 class Solver(ABC):
     @abstractmethod
     def get_guess(
         self,
         last_guess: str,
         last_guess_valid: bool,
-        last_guess_score: str,
-        letter_info: Dict[str, List[int]]) -> str:
+        last_guess_score: str) -> str:
         pass 
 
-class TournamentRunner:
+    abstractmethod
+    def reset(self):
+        pass
 
+
+class TournamentRunner:
     solver: Solver
     client: Client
     user_id: int
     seed_start: int
     seed_end: int
+    max_num_turns: int
+
 
     def __init__(
         self,
         solver: Solver,
         auth_code: str,
         user_id: int,
-        server_url: Optional[str] = None,
+        server_url: Optional[str] = default_server_url,
         seed_start: int = 0,
-        seed_end: int = 2000) -> None:
+        seed_end: int = len(wordle_solution_words) - 1,
+        max_num_turns: int = 20) -> None:
 
         self.solver = solver
         self.user_id = user_id
@@ -147,11 +173,16 @@ class TournamentRunner:
             else Client(auth_code) 
         self.seed_start = seed_start
         self.seed_end = seed_end
+        self.max_num_turns = max_num_turns
+
 
     def play_tournament(self) -> None:
         for seed in range(self.seed_start, self.seed_end + 1):
             game = self.client.create_game(self.user_id, seed)
+            print(f"starting game with seed {seed}")
+            self.solver.reset()
             self._play_game(game.game_id)
+
 
     def _play_game(self, game_id: int) -> None:
         num_turns = 0
@@ -160,11 +191,10 @@ class TournamentRunner:
         last_guess = ""
         last_word_valid = True
         last_word_score = ""
-        letter_info: Dict[str, List[int]] = {}
 
-        while not done and num_turns < 100:
+        while not done and num_turns < self.max_num_turns:
             num_turns += 1
-            word = self.solver.get_guess(last_guess, last_word_valid, last_word_score, letter_info)
+            word = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
 
             try:
                 guess_result = self.client.create_guess(game_id, word)
@@ -179,7 +209,6 @@ class TournamentRunner:
             done = guess_result.done
             last_word_score = guess_result.score
             last_word_valid = True
-            letter_info = guess_result.letter_info
 
 
 @dataclass(frozen=True)
@@ -214,10 +243,9 @@ class MemoryGameRunner:
         while not won and num_guesses < self.max_num_guesses:
             num_guesses += 1
 
-            guess = self.solver.get_guess(last_guess, last_word_valid, last_word_score, self.letter_info)
+            guess = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
             last_guess = guess
             last_word_score = self._score_guess(guess)
-            self._update_letter_info(guess, last_word_score)
             self.guesses.append((guess, last_word_score))
             won = last_word_score == "ggggg"
 
@@ -246,17 +274,3 @@ class MemoryGameRunner:
                 sol_char_counts.subtract(guess_c)
             
         return "".join(score)
-
-    def _update_letter_info(self, guess: str, score: str) -> None:
-        for i, guess_c in enumerate(guess):
-            score_c = score[i]
-
-            num = 0
-            if score_c == "w":
-                num = -1 * (i + 1)
-            elif score_c == "y":
-                num = i + 1
-
-            if num not in self.letter_info[guess_c]:
-                self.letter_info[guess_c].append(num)
-

@@ -1,6 +1,6 @@
 from typing import List
 
-wordle_words: List[str] = [
+wordle_solution_words: List[str] = [
     "cigar",
     "rebut",
     "sissy",
@@ -2316,4 +2316,4 @@ wordle_words: List[str] = [
     "artsy",
     "rural",
     "shave",
-];
+]
