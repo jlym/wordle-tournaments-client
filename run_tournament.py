@@ -8,8 +8,8 @@ if not auth_code:
     print("Expected AUTH_CODE environment variable to be set")
     sys.exit(1)
 
-user_id = 4
+#auth_code="token"
 
 solver = CharFreqSolver()
-runner = TournamentRunner(solver, auth_code, user_id)
+runner = TournamentRunner(solver, auth_code, "jeffrey_freq_solver_scrabble", "Jeffrey: frequency solver using scrabble list")
 runner.play_tournament()

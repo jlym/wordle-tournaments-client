@@ -9,6 +9,7 @@ import requests
 from .wordle_solution_words import wordle_solution_words
 from .wordle_valid_words import wordle_valid_words
 from .scrabble_words import scrabble_words
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -18,19 +19,22 @@ class User:
 
 
 @dataclass(frozen=True)
+class CompleteGamesGuess:
+    word: str
+    score: str
+
+
+@dataclass(frozen=True)
 class Game:
     game_id: int
     user_id: int
     seed: int
     solution: str
-    letter_info: Dict[str, List[int]]
+    guesses: List[CompleteGamesGuess]
+    status: int
     num_guesses: int
-    done: bool
 
-@dataclass(frozen=True)
-class CompleteGamesGuess:
-    word: str
-    score: str
+
 
 @dataclass(frozen=True)
 class CreateCompleteGameArgs:
@@ -38,7 +42,7 @@ class CreateCompleteGameArgs:
     user_id: int
     seed: int
     solution: str
-    done: bool
+    status: int
     guesses: List[CompleteGamesGuess]
 
 @dataclass(frozen=True)
@@ -47,8 +51,8 @@ class Guess:
     num: int
     word: str
     score: str
-    letter_info: Dict[str, List[int]]
-    done: bool
+    guesses: List[CompleteGamesGuess]
+    status: int
 
 
 default_server_url = "https://wordle-tournaments.vercel.app/api"
@@ -62,9 +66,10 @@ class Client:
         self.base_url = url
         self.auth_code = auth_code
 
-    def create_user(self, description: str) -> User:
+    def create_user(self, name: str, description: str) -> User:
         params = {
             "auth_code": self.auth_code,
+            "name": name,
             "description": description,
         }
         url = f"{self.base_url}/user"
@@ -73,62 +78,6 @@ class Client:
 
         json = resp.json()
         return User(json["user_id"], json["description"])
-
-    def create_game(
-        self,
-        user_id: int,
-        seed: Optional[int] = None,
-        solution: Optional[str] = None) -> Game:
-
-        params = {
-            "auth_code": self.auth_code,
-            "user_id": user_id,
-        }
-        if seed is not None:
-            params["seed"] = seed
-        if solution is not None:
-            params["solution"] = solution
-
-        url = f"{self.base_url}/game"
-        resp = requests.post(url, params=params)
-        resp.raise_for_status()
-
-        json = resp.json()
-        return Game(
-            game_id=json["game_id"], 
-            user_id=json["user_id"],
-            seed=json["seed"],
-            solution=json["solution"],
-            letter_info=json["letter_info"],
-            num_guesses=json["num_guesses"],
-            done=json["done"]
-        )
-
-    def create_guess(
-        self,
-        game_id: int,
-        word: str) -> Guess:
-
-        params = {
-            "auth_code": self.auth_code,
-            "game_id": game_id,
-            "word": word,
-        }
-
-        url = f"{self.base_url}/guess"
-        resp = requests.post(url, params=params)
-        resp.raise_for_status()
-
-        json = resp.json()
-        
-        return Guess(
-            game_id=json["game_id"], 
-            num=1,
-            word=json["word"],
-            score=json["score"],
-            letter_info=json["letter_info"],
-            done=json["done"]
-        )
 
     def create_complete_game(self, args: CreateCompleteGameArgs) -> Game:
         url = f"{self.base_url}/completegame"
@@ -142,9 +91,9 @@ class Client:
             user_id=json["user_id"],
             seed=json["seed"],
             solution=json["solution"],
-            letter_info={},
+            guesses=json["guesses"],
             num_guesses=json["num_guesses"],
-            done=json["done"])
+            status=json["status"])
 
 
 def get_valid_wordle_words() -> Set[str]:
@@ -174,6 +123,28 @@ class Solver(ABC):
     def reset(self):
         pass
 
+def _score_guess(guess: str, solution: str) -> str:
+    sol_char_counts = Counter(solution)
+    score = ["w"] * 5
+
+    for i, guess_c in enumerate(guess):
+        sol_c = solution[i]
+
+        if sol_c == guess_c:
+            sol_char_counts.subtract(guess_c)
+            score[i] = "g"
+
+    for i, guess_c in enumerate(guess):
+        sol_c = solution[i]
+
+        if sol_c == guess_c:
+            continue
+
+        if sol_char_counts[guess_c] > 0:
+            score[i] = "y"
+            sol_char_counts.subtract(guess_c)
+        
+    return "".join(score)
 
 class TournamentRunner:
     solver: Solver
@@ -182,20 +153,25 @@ class TournamentRunner:
     seed_start: int
     seed_end: int
     max_num_turns: int
-
+    auth_code: str
+    wordle_solutions: List[str]
+    user_description: str
+    user_name: str
 
     def __init__(
         self,
         solver: Solver,
         auth_code: str,
-        user_id: int,
+        user_name: str,
+        user_description: str,
         server_url: Optional[str] = default_server_url,
         seed_start: int = 0,
         seed_end: int = len(wordle_solution_words) - 1,
         max_num_turns: int = 20) -> None:
 
+        self.auth_code = auth_code
         self.solver = solver
-        self.user_id = user_id
+        self.user_description = user_description
         self.client = \
             Client(auth_code, server_url) \
             if server_url \
@@ -203,41 +179,47 @@ class TournamentRunner:
         self.seed_start = seed_start
         self.seed_end = seed_end
         self.max_num_turns = max_num_turns
+        self.wordle_solutions = wordle_solution_words.copy()
+        self.user_name = user_name
 
 
     def play_tournament(self) -> None:
+        user = self.client.create_user(self.user_name, self.user_description)
+        user_id = user.user_id
+
         for seed in range(self.seed_start, self.seed_end + 1):
-            game = self.client.create_game(self.user_id, seed)
-            print(f"starting game with seed {seed}")
+            args = self._play_game(user.user_id, seed)
+            game = self.client.create_complete_game(args)
+
+            print(f"completed game, {user_id =}, {seed =}, game_id = {game.game_id}, time = {datetime.now()}")
+
             self.solver.reset()
-            self._play_game(game.game_id)
+            
 
+    def _play_game(self, user_id: int, seed: int) -> CreateCompleteGameArgs:
 
-    def _play_game(self, game_id: int) -> None:
-        num_turns = 0
-        done = False
+        solution = self.wordle_solutions[seed]
+        guesses: List[CompleteGamesGuess] = []
 
-        last_guess = ""
+        num_guesses = 0
+        won = False
+
         last_word_valid = True
         last_word_score = ""
+        last_guess = ""
 
-        while not done and num_turns < self.max_num_turns:
-            num_turns += 1
-            word = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
+        while not won and num_guesses < self.max_num_turns:
+            num_guesses += 1
 
-            try:
-                guess_result = self.client.create_guess(game_id, word)
+            guess = self.solver.get_guess(last_guess, last_word_valid, last_word_score)
+            last_guess = guess
+            last_word_score = _score_guess(guess, solution)
+            guesses.append(CompleteGamesGuess(guess, last_word_score))
+            won = last_word_score == "ggggg"
 
-            except requests.HTTPError as err:
-                if err.response.status_code == 422:
-                    last_word_valid = False
-                    continue
-                raise
-
-            last_guess = guess_result.word
-            done = guess_result.done
-            last_word_score = guess_result.score
-            last_word_valid = True
+        status = 1 if won else 2
+        return CreateCompleteGameArgs(
+            self.auth_code, user_id, seed, solution, status, guesses)
 
 
 @dataclass(frozen=True)
@@ -282,24 +264,4 @@ class MemoryGameRunner:
 
 
     def _score_guess(self, guess: str) -> str:
-        sol_char_counts = Counter(self.solution)
-        score = ["w"] * 5
-
-        for i, guess_c in enumerate(guess):
-            sol_c = self.solution[i]
-
-            if sol_c == guess_c:
-                sol_char_counts.subtract(guess_c)
-                score[i] = "g"
-
-        for i, guess_c in enumerate(guess):
-            sol_c = self.solution[i]
-
-            if sol_c == guess_c:
-                continue
-
-            if sol_char_counts[guess_c] > 0:
-                score[i] = "y"
-                sol_char_counts.subtract(guess_c)
-            
-        return "".join(score)
+        return _score_guess(guess, self.solution)

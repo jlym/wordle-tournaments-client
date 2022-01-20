@@ -6,36 +6,11 @@ def test_api():
 
     # Create a user
     description = "python client integration test"
-    user = client.create_user(description)
+    user = client.create_user("name", description)
     assert user
     assert user.user_id > 0
     assert user.description == description
 
-    # Create a game.
-    game = client.create_game(user.user_id, solution="bread")
-    assert game
-    assert game.user_id == user.user_id
-    assert game.game_id
-    assert game.solution
-    assert game.seed >= 0
-    assert game.done == False
-    assert game.letter_info is not None
-    assert game.num_guesses == 0
-
-    # Make a guess
-    guess = client.create_guess(game.game_id, "bread")
-    assert guess
-    assert guess.game_id == game.game_id
-    assert guess.word == "bread"
-    assert guess.score == "ggggg"
-    assert guess.done
-    assert guess.letter_info == {
-        "b": [1],
-        "r": [2],
-        "e": [3],
-        "a": [4],
-        "d": [5]
-    }
 
 class FixedGuessSolver(Solver):
     guesses: List[str]
@@ -63,11 +38,11 @@ def test_tournament_solver():
     client = Client(auth_code, server_url)
 
     # Create a user
-    description = "python client tournament test user"
-    user = client.create_user(description)
+    user_name = "python client tournament test user"
+    description = "python client tournament test user desc"
 
     solver = FixedGuessSolver(["bread", "cigar"])
-    runner = TournamentRunner(solver, auth_code, user.user_id, server_url, 0, 0)
+    runner = TournamentRunner(solver, auth_code, user_name, description, server_url, 0, 0)
     runner.play_tournament()
 
 def test_memory_game_runner():
